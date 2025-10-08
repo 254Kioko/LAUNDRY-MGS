@@ -1,0 +1,350 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
+import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+
+interface ClothingItem {
+  clothing_type_id: string;
+  quantity: number;
+  color: string;
+  unit_price: number;
+}
+
+const OrderForm = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [clothingTypes, setClothingTypes] = useState<any[]>([]);
+  
+  const [customerName, setCustomerName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [collectionDate, setCollectionDate] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "deposit" | "paid">("unpaid");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "mpesa" | "pending">("pending");
+  const [amountPaid, setAmountPaid] = useState("");
+  const [notes, setNotes] = useState("");
+  
+  const [items, setItems] = useState<ClothingItem[]>([{
+    clothing_type_id: "",
+    quantity: 1,
+    color: "",
+    unit_price: 0,
+  }]);
+
+  useEffect(() => {
+    fetchClothingTypes();
+  }, []);
+
+  const fetchClothingTypes = async () => {
+    const { data, error } = await supabase
+      .from("clothing_types")
+      .select("*")
+      .order("name");
+    
+    if (error) {
+      console.error("Error fetching clothing types:", error);
+      return;
+    }
+    
+    setClothingTypes(data || []);
+  };
+
+  const addItem = () => {
+    setItems([...items, {
+      clothing_type_id: "",
+      quantity: 1,
+      color: "",
+      unit_price: 0,
+    }]);
+  };
+
+  const removeItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const updateItem = (index: number, field: keyof ClothingItem, value: any) => {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], [field]: value };
+    
+    if (field === "clothing_type_id") {
+      const type = clothingTypes.find(t => t.id === value);
+      if (type) {
+        newItems[index].unit_price = parseFloat(type.price);
+      }
+    }
+    
+    setItems(newItems);
+  };
+
+  const calculateTotal = () => {
+    return items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Create or get customer
+      let customerId;
+      const { data: existingCustomer } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("phone_number", phoneNumber)
+        .single();
+
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+      } else {
+        const { data: newCustomer, error: customerError } = await supabase
+          .from("customers")
+          .insert({
+            full_name: customerName,
+            phone_number: phoneNumber,
+          })
+          .select()
+          .single();
+
+        if (customerError) throw customerError;
+        customerId = newCustomer.id;
+      }
+
+      // Create order
+      const totalAmount = calculateTotal();
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          customer_id: customerId,
+          collection_date: collectionDate,
+          payment_status: paymentStatus,
+          payment_method: paymentMethod,
+          amount_paid: parseFloat(amountPaid) || 0,
+          notes,
+          created_by: user.id,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = items.map(item => ({
+        order_id: order.id,
+        clothing_type_id: item.clothing_type_id,
+        quantity: item.quantity,
+        color: item.color,
+        unit_price: item.unit_price,
+        subtotal: item.quantity * item.unit_price,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      toast({
+        title: "Order created!",
+        description: "The order has been created successfully.",
+      });
+
+      navigate(`/receipt/${order.id}`);
+    } catch (error: any) {
+      console.error("Error creating order:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="customerName">Customer Name *</Label>
+          <Input
+            id="customerName"
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            required
+            placeholder="John Doe"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="phoneNumber">Phone Number *</Label>
+          <Input
+            id="phoneNumber"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            required
+            placeholder="+254 700 000 000"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="collectionDate">Collection Date *</Label>
+          <Input
+            id="collectionDate"
+            type="date"
+            value={collectionDate}
+            onChange={(e) => setCollectionDate(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="paymentStatus">Payment Status *</Label>
+          <Select value={paymentStatus} onValueChange={(value: any) => setPaymentStatus(value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="deposit">Deposit</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {(paymentStatus === "deposit" || paymentStatus === "paid") && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod">Payment Method *</Label>
+              <Select value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="mpesa">M-Pesa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amountPaid">Amount Paid *</Label>
+              <Input
+                id="amountPaid"
+                type="number"
+                step="0.01"
+                value={amountPaid}
+                onChange={(e) => setAmountPaid(e.target.value)}
+                required={paymentStatus === "deposit" || paymentStatus === "paid"}
+                placeholder="0.00"
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-lg font-semibold">Clothing Items</Label>
+          <Button type="button" onClick={addItem} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
+        </div>
+
+        {items.map((item, index) => (
+          <Card key={index} className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="md:col-span-2 space-y-2">
+                <Label>Clothing Type *</Label>
+                <Select 
+                  value={item.clothing_type_id} 
+                  onValueChange={(value) => updateItem(index, "clothing_type_id", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clothingTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.name} - KES {type.price}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Quantity *</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={item.quantity}
+                  onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value))}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Color</Label>
+                <Input
+                  value={item.color}
+                  onChange={(e) => updateItem(index, "color", e.target.value)}
+                  placeholder="White"
+                />
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  onClick={() => removeItem(index)}
+                  disabled={items.length === 1}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-2 text-sm text-muted-foreground">
+              Subtotal: KES {(item.quantity * item.unit_price).toFixed(2)}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="notes">Notes (Optional)</Label>
+        <Textarea
+          id="notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Any special instructions..."
+          rows={3}
+        />
+      </div>
+
+      <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+        <span className="text-lg font-semibold">Total Amount:</span>
+        <span className="text-2xl font-bold">KES {calculateTotal().toFixed(2)}</span>
+      </div>
+
+      <Button type="submit" className="w-full" size="lg" disabled={loading}>
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Create Order & Generate Receipt
+      </Button>
+    </form>
+  );
+};
+
+export default OrderForm;
