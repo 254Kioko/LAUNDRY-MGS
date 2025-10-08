@@ -14,16 +14,261 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clothing_types: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          price: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          price: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
+      customers: {
+        Row: {
+          created_at: string | null
+          full_name: string
+          id: string
+          phone_number: string
+        }
+        Insert: {
+          created_at?: string | null
+          full_name: string
+          id?: string
+          phone_number: string
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          phone_number?: string
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          clothing_type_id: string
+          color: string | null
+          created_at: string | null
+          id: string
+          order_id: string
+          quantity: number
+          subtotal: number
+          unit_price: number
+        }
+        Insert: {
+          clothing_type_id: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          order_id: string
+          quantity?: number
+          subtotal: number
+          unit_price: number
+        }
+        Update: {
+          clothing_type_id?: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          order_id?: string
+          quantity?: number
+          subtotal?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_clothing_type_id_fkey"
+            columns: ["clothing_type_id"]
+            isOneToOne: false
+            referencedRelation: "clothing_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          amount_paid: number | null
+          collection_date: string
+          created_at: string | null
+          created_by: string | null
+          customer_id: string
+          date_received: string | null
+          id: string
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
+          payment_status: Database["public"]["Enums"]["payment_status"] | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          storage_fee: number | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          collection_date: string
+          created_at?: string | null
+          created_by?: string | null
+          customer_id: string
+          date_received?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          status?: Database["public"]["Enums"]["order_status"] | null
+          storage_fee?: number | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          collection_date?: string
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string
+          date_received?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          status?: Database["public"]["Enums"]["order_status"] | null
+          storage_fee?: number | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          created_by: string | null
+          id: string
+          order_id: string
+          payment_date: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          reference_number: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          order_id: string
+          payment_date?: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          reference_number?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          order_id?: string
+          payment_date?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          reference_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          full_name: string
+          id: string
+          phone_number: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          full_name: string
+          id: string
+          phone_number?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          phone_number?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_storage_fee: {
+        Args: { _order_id: string }
+        Returns: number
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      update_overdue_orders: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "staff"
+      order_status: "pending" | "ready" | "collected" | "overdue"
+      payment_method: "cash" | "mpesa" | "pending"
+      payment_status: "unpaid" | "deposit" | "paid"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +395,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "staff"],
+      order_status: ["pending", "ready", "collected", "overdue"],
+      payment_method: ["cash", "mpesa", "pending"],
+      payment_status: ["unpaid", "deposit", "paid"],
+    },
   },
 } as const
