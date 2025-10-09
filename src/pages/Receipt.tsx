@@ -73,21 +73,20 @@ const Receipt = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card print:hidden">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate("/dashboard")}>
+        <div className="container mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
+            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="sm:hidden">Back</span>
           </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handlePrint}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
-            </Button>
-          </div>
+          <Button variant="outline" onClick={handlePrint} size="sm" className="w-full sm:w-auto">
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <main className="container mx-auto px-4 py-4 sm:py-8 max-w-4xl">
         <ReceiptView order={order} />
       </main>
     </div>

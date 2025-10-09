@@ -55,36 +55,38 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Laundry Management</h1>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate("/new-order")}>
+        <div className="container mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold">Laundry Management</h1>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button onClick={() => navigate("/new-order")} size="sm" className="flex-1 sm:flex-initial">
               <Plus className="mr-2 h-4 w-4" />
-              New Order
+              <span className="hidden sm:inline">New Order</span>
+              <span className="sm:hidden">New</span>
             </Button>
-            <Button variant="outline" onClick={handleSignOut}>
+            <Button variant="outline" onClick={handleSignOut} size="sm" className="flex-1 sm:flex-initial">
               <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
+              <span className="hidden sm:inline">Sign Out</span>
+              <span className="sm:hidden">Out</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-4 sm:py-8">
         <DashboardStats />
 
-        <Card className="mt-8">
+        <Card className="mt-4 sm:mt-8">
           <CardHeader>
-            <CardTitle>Orders</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Orders</CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="all" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="pending">Pending</TabsTrigger>
-                <TabsTrigger value="ready">Ready</TabsTrigger>
-                <TabsTrigger value="collected">Collected</TabsTrigger>
-                <TabsTrigger value="overdue">Overdue</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-5 h-auto">
+                <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
+                <TabsTrigger value="pending" className="text-xs sm:text-sm">Pending</TabsTrigger>
+                <TabsTrigger value="ready" className="text-xs sm:text-sm">Ready</TabsTrigger>
+                <TabsTrigger value="collected" className="text-xs sm:text-sm">Collected</TabsTrigger>
+                <TabsTrigger value="overdue" className="text-xs sm:text-sm">Overdue</TabsTrigger>
               </TabsList>
               
               <TabsContent value="all">

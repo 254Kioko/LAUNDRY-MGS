@@ -153,61 +153,107 @@ const OrderList = ({ status }: OrderListProps) => {
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Customer</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Collection Date</TableHead>
-            <TableHead>Total</TableHead>
-            <TableHead>Payment</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {orders.map((order) => (
-            <TableRow key={order.id}>
-              <TableCell className="font-medium">
-                {order.customers?.full_name}
-              </TableCell>
-              <TableCell>{order.customers?.phone_number}</TableCell>
-              <TableCell>
-                {format(new Date(order.collection_date), "MMM dd, yyyy")}
-              </TableCell>
-              <TableCell>KES {parseFloat(order.total_amount).toFixed(2)}</TableCell>
-              <TableCell>{getPaymentBadge(order.payment_status)}</TableCell>
-              <TableCell>
-                <Select
-                  value={order.status}
-                  onValueChange={(value) => updateOrderStatus(order.id, value as "pending" | "ready" | "collected" | "overdue")}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="ready">Ready</SelectItem>
-                    <SelectItem value="collected">Collected</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                  </SelectContent>
-                </Select>
-              </TableCell>
-              <TableCell>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate(`/receipt/${order.id}`)}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  View
-                </Button>
-              </TableCell>
+    <div className="space-y-3">
+      {/* Mobile View */}
+      <div className="block lg:hidden space-y-3">
+        {orders.map((order) => (
+          <div key={order.id} className="border rounded-lg p-3 space-y-2">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-semibold text-sm">{order.customers?.full_name}</p>
+                <p className="text-xs text-muted-foreground">{order.customers?.phone_number}</p>
+              </div>
+              {getStatusBadge(order.status)}
+            </div>
+            <div className="text-xs space-y-1">
+              <p><span className="text-muted-foreground">Collection:</span> {format(new Date(order.collection_date), "MMM dd")}</p>
+              <p><span className="text-muted-foreground">Total:</span> KES {parseFloat(order.total_amount).toFixed(2)}</p>
+              <p><span className="text-muted-foreground">Payment:</span> {getPaymentBadge(order.payment_status)}</p>
+            </div>
+            <div className="flex gap-2">
+              <Select
+                value={order.status}
+                onValueChange={(value) => updateOrderStatus(order.id, value as "pending" | "ready" | "collected" | "overdue")}
+              >
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="ready">Ready</SelectItem>
+                  <SelectItem value="collected">Collected</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/receipt/${order.id}`)}
+              >
+                <Eye className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop View */}
+      <div className="hidden lg:block rounded-md border overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Customer</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Collection Date</TableHead>
+              <TableHead>Total</TableHead>
+              <TableHead>Payment</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {orders.map((order) => (
+              <TableRow key={order.id}>
+                <TableCell className="font-medium">
+                  {order.customers?.full_name}
+                </TableCell>
+                <TableCell>{order.customers?.phone_number}</TableCell>
+                <TableCell>
+                  {format(new Date(order.collection_date), "MMM dd, yyyy")}
+                </TableCell>
+                <TableCell>KES {parseFloat(order.total_amount).toFixed(2)}</TableCell>
+                <TableCell>{getPaymentBadge(order.payment_status)}</TableCell>
+                <TableCell>
+                  <Select
+                    value={order.status}
+                    onValueChange={(value) => updateOrderStatus(order.id, value as "pending" | "ready" | "collected" | "overdue")}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="ready">Ready</SelectItem>
+                      <SelectItem value="collected">Collected</SelectItem>
+                      <SelectItem value="overdue">Overdue</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(`/receipt/${order.id}`)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
