@@ -10,12 +10,9 @@ import { Loader2 } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -38,42 +35,24 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully logged in.",
-        });
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              phone_number: phoneNumber,
-            },
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-          },
-        });
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Account created!",
-          description: "Please check your email to verify your account.",
-        });
-      }
+      // Map username to email for Supabase authentication
+      const email = username === "admin" ? "admin@system.local" : `${username}@system.local`;
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Welcome back!",
+        description: "You've successfully logged in.",
+      });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Invalid credentials",
         variant: "destructive",
       });
     } finally {
@@ -85,48 +64,22 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Laundry Management</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">Laundry Management</CardTitle>
           <CardDescription>
-            {isLogin ? "Sign in to your account" : "Create a new account"}
+            Sign in to your account
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
-            {!isLogin && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="+254 700 000 000"
-                  />
-                </div>
-              </>
-            )}
-            
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
-                placeholder="you@example.com"
+                placeholder="admin"
               />
             </div>
 
@@ -145,19 +98,8 @@ const Auth = () => {
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLogin ? "Sign In" : "Sign Up"}
+              Sign In
             </Button>
-
-            <div className="text-center text-sm">
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-primary hover:underline font-medium"
-              >
-                {isLogin ? "Sign Up" : "Sign In"}
-              </button>
-            </div>
           </form>
         </CardContent>
       </Card>
