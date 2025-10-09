@@ -130,7 +130,7 @@ const ReceiptView = ({ order }: ReceiptViewProps) => {
         )}
 
         <div className="text-center text-xs text-muted-foreground pt-4">
-          <p>Thank you for your business!</p>
+          <p>Thank you for your choosing us!</p>
           <p className="mt-1">Items not collected within 3 months will incur storage fees</p>
         </div>
       </CardContent>
