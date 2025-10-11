@@ -1,12 +1,19 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { format } from "date-fns";
+import { format, addMonths, differenceInDays } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 interface ReceiptViewProps {
   order: any;
 }
 
 const ReceiptView = ({ order }: ReceiptViewProps) => {
+  const collectionDate = new Date(order.collection_date);
+  const overdueDate = addMonths(collectionDate, 3);
+  const daysUntilOverdue = differenceInDays(overdueDate, new Date());
+  const isOverdue = daysUntilOverdue < 0;
+  const isApproachingOverdue = daysUntilOverdue <= 30 && daysUntilOverdue > 0;
+
   return (
     <Card className="print:shadow-none">
       <CardHeader className="text-center space-y-2">
@@ -30,6 +37,18 @@ const ReceiptView = ({ order }: ReceiptViewProps) => {
               <p><span className="text-muted-foreground">Date Received:</span> {format(new Date(order.date_received), "MMM dd, yyyy")}</p>
               <p><span className="text-muted-foreground">Collection Date:</span> {format(new Date(order.collection_date), "MMM dd, yyyy")}</p>
               <p><span className="text-muted-foreground">Status:</span> {order.status.toUpperCase()}</p>
+              {order.status !== 'collected' && (
+                <p className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Storage After:</span> 
+                  <span>{format(overdueDate, "MMM dd, yyyy")}</span>
+                  {isOverdue && (
+                    <Badge variant="destructive" className="text-xs">Overdue</Badge>
+                  )}
+                  {isApproachingOverdue && (
+                    <Badge variant="secondary" className="text-xs">{daysUntilOverdue} days left</Badge>
+                  )}
+                </p>
+              )}
             </div>
           </div>
         </div>

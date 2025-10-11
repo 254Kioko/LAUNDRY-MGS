@@ -19,8 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Eye, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { Eye, Loader2, AlertCircle } from "lucide-react";
+import { format, addMonths, differenceInDays } from "date-fns";
 
 interface OrderListProps {
   status: "all" | "pending" | "ready" | "collected" | "overdue";
@@ -136,6 +136,20 @@ const OrderList = ({ status }: OrderListProps) => {
     );
   };
 
+  const getOverdueInfo = (collectionDate: string, status: string) => {
+    if (status === 'collected') return null;
+    
+    const overdueDate = addMonths(new Date(collectionDate), 3);
+    const daysUntil = differenceInDays(overdueDate, new Date());
+    
+    if (daysUntil < 0) {
+      return <span className="text-destructive text-xs flex items-center gap-1"><AlertCircle className="h-3 w-3" />Overdue</span>;
+    } else if (daysUntil <= 30) {
+      return <span className="text-orange-600 text-xs">{daysUntil}d left</span>;
+    }
+    return <span className="text-xs text-muted-foreground">{daysUntil}d</span>;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -169,6 +183,9 @@ const OrderList = ({ status }: OrderListProps) => {
               <p><span className="text-muted-foreground">Collection:</span> {format(new Date(order.collection_date), "MMM dd")}</p>
               <p><span className="text-muted-foreground">Total:</span> KES {parseFloat(order.total_amount).toFixed(2)}</p>
               <p><span className="text-muted-foreground">Payment:</span> {getPaymentBadge(order.payment_status)}</p>
+              {getOverdueInfo(order.collection_date, order.status) && (
+                <p><span className="text-muted-foreground">Storage:</span> {getOverdueInfo(order.collection_date, order.status)}</p>
+              )}
             </div>
             <div className="flex gap-2">
               <Select
@@ -205,6 +222,7 @@ const OrderList = ({ status }: OrderListProps) => {
               <TableHead>Customer</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Collection Date</TableHead>
+              <TableHead>Storage</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Payment</TableHead>
               <TableHead>Status</TableHead>
@@ -221,6 +239,7 @@ const OrderList = ({ status }: OrderListProps) => {
                 <TableCell>
                   {format(new Date(order.collection_date), "MMM dd, yyyy")}
                 </TableCell>
+                <TableCell>{getOverdueInfo(order.collection_date, order.status)}</TableCell>
                 <TableCell>KES {parseFloat(order.total_amount).toFixed(2)}</TableCell>
                 <TableCell>{getPaymentBadge(order.payment_status)}</TableCell>
                 <TableCell>
