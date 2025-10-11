@@ -206,60 +206,10 @@ const OrderForm = () => {
             required
           />
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="paymentStatus">Payment Status *</Label>
-          <Select value={paymentStatus} onValueChange={(value: any) => setPaymentStatus(value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
-              <SelectItem value="deposit">Deposit</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {(paymentStatus === "deposit" || paymentStatus === "paid") && (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="paymentMethod">Payment Method *</Label>
-              <Select value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="mpesa">M-Pesa</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="amountPaid">Amount Paid *</Label>
-              <Input
-                id="amountPaid"
-                type="number"
-                step="0.01"
-                value={amountPaid}
-                onChange={(e) => setAmountPaid(e.target.value)}
-                required={paymentStatus === "deposit" || paymentStatus === "paid"}
-                placeholder="0.00"
-              />
-            </div>
-          </>
-        )}
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Label className="text-lg font-semibold">Clothing Items</Label>
-          <Button type="button" onClick={addItem} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Item
-          </Button>
-        </div>
+        <Label className="text-lg font-semibold">Clothing Items</Label>
 
         {items.map((item, index) => (
           <Card key={index} className="p-4">
@@ -334,9 +284,62 @@ const OrderForm = () => {
         />
       </div>
 
+      <div className="flex justify-end">
+        <Button type="button" onClick={addItem} size="sm">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Item
+        </Button>
+      </div>
+
       <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
         <span className="text-lg font-semibold">Total Amount:</span>
         <span className="text-2xl font-bold">KES {calculateTotal().toFixed(2)}</span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="paymentStatus">Payment Status *</Label>
+          <Select value={paymentStatus} onValueChange={(value: any) => setPaymentStatus(value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="deposit">Deposit</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {(paymentStatus === "deposit" || paymentStatus === "paid") && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod">Payment Method *</Label>
+              <Select value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="mpesa">M-Pesa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amountPaid">Amount Paid *</Label>
+              <Input
+                id="amountPaid"
+                type="number"
+                step="0.01"
+                value={amountPaid}
+                onChange={(e) => setAmountPaid(e.target.value)}
+                required={paymentStatus === "deposit" || paymentStatus === "paid"}
+                placeholder="0.00"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <Button type="submit" className="w-full" size="lg" disabled={loading}>
