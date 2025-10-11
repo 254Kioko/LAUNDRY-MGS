@@ -252,6 +252,14 @@ export type Database = {
         Args: { _order_id: string }
         Returns: number
       }
+      get_days_until_overdue: {
+        Args: { collection_date: string }
+        Returns: number
+      }
+      get_overdue_date: {
+        Args: { collection_date: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
