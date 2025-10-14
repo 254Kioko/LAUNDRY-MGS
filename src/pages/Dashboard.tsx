@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Plus, Package, DollarSign, Clock, CheckCircle } from "lucide-react";
+import { LogOut, Plus, Package, DollarSign, Clock, CheckCircle, Search } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import OrderList from "@/components/OrderList";
 import DashboardStats from "@/components/DashboardStats";
@@ -58,6 +58,11 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <h1 className="text-xl sm:text-2xl font-bold">Laundry Management</h1>
           <div className="flex gap-2 w-full sm:w-auto">
+            <Button onClick={() => navigate("/dashboard/track")} size="sm" variant="outline" className="flex-1 sm:flex-initial">
+              <Search className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Track Order</span>
+              <span className="sm:hidden">Track</span>
+            </Button>
             <Button onClick={() => navigate("/new-order")} size="sm" className="flex-1 sm:flex-initial">
               <Plus className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">New Order</span>
