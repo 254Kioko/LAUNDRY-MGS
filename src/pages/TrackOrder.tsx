@@ -43,6 +43,26 @@ const TrackOrder = () => {
     setSearched(true);
 
     try {
+      // First, find customers matching the search term
+      const { data: customers, error: customerError } = await supabase
+        .from("customers")
+        .select("id")
+        .or(`full_name.ilike.%${searchTerm}%,phone_number.ilike.%${searchTerm}%`);
+
+      if (customerError) throw customerError;
+
+      if (!customers || customers.length === 0) {
+        setOrders([]);
+        toast({
+          title: "No orders found",
+          description: "No orders match your search criteria",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Then fetch orders for those customers
+      const customerIds = customers.map(c => c.id);
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -52,7 +72,7 @@ const TrackOrder = () => {
             phone_number
           )
         `)
-        .or(`customers.full_name.ilike.%${searchTerm}%,customers.phone_number.ilike.%${searchTerm}%`)
+        .in("customer_id", customerIds)
         .order("date_received", { ascending: false });
 
       if (error) throw error;
