@@ -107,6 +107,29 @@ const OrderList = ({ status }: OrderListProps) => {
     }
   };
 
+  const updatePaymentStatus = async (orderId: string, newPaymentStatus: "unpaid" | "deposit" | "paid") => {
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ payment_status: newPaymentStatus })
+        .eq("id", orderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Payment status updated",
+        description: "Payment status has been updated successfully.",
+      });
+    } catch (error: any) {
+      console.error("Error updating payment status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update payment status",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       pending: "secondary",
@@ -187,28 +210,43 @@ const OrderList = ({ status }: OrderListProps) => {
                 <p><span className="text-muted-foreground">Storage:</span> {getOverdueInfo(order.collection_date, order.status)}</p>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Select
+                  value={order.status}
+                  onValueChange={(value) => updateOrderStatus(order.id, value as "pending" | "ready" | "collected" | "overdue")}
+                >
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue placeholder="Order Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="ready">Ready</SelectItem>
+                    <SelectItem value="collected">Collected</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/receipt/${order.id}`)}
+                >
+                  <Eye className="h-3 w-3" />
+                </Button>
+              </div>
               <Select
-                value={order.status}
-                onValueChange={(value) => updateOrderStatus(order.id, value as "pending" | "ready" | "collected" | "overdue")}
+                value={order.payment_status}
+                onValueChange={(value) => updatePaymentStatus(order.id, value as "unpaid" | "deposit" | "paid")}
               >
-                <SelectTrigger className="h-8 text-xs flex-1">
-                  <SelectValue />
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Payment Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="ready">Ready</SelectItem>
-                  <SelectItem value="collected">Collected</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                  <SelectItem value="deposit">Deposit</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
                 </SelectContent>
               </Select>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/receipt/${order.id}`)}
-              >
-                <Eye className="h-3 w-3" />
-              </Button>
             </div>
           </div>
         ))}
@@ -224,8 +262,8 @@ const OrderList = ({ status }: OrderListProps) => {
               <TableHead>Collection Date</TableHead>
               <TableHead>Storage</TableHead>
               <TableHead>Total</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Payment Status</TableHead>
+              <TableHead>Order Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -241,7 +279,21 @@ const OrderList = ({ status }: OrderListProps) => {
                 </TableCell>
                 <TableCell>{getOverdueInfo(order.collection_date, order.status)}</TableCell>
                 <TableCell>KES {parseFloat(order.total_amount).toFixed(2)}</TableCell>
-                <TableCell>{getPaymentBadge(order.payment_status)}</TableCell>
+                <TableCell>
+                  <Select
+                    value={order.payment_status}
+                    onValueChange={(value) => updatePaymentStatus(order.id, value as "unpaid" | "deposit" | "paid")}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unpaid">Unpaid</SelectItem>
+                      <SelectItem value="deposit">Deposit</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
                 <TableCell>
                   <Select
                     value={order.status}
