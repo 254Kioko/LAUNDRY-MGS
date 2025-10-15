@@ -109,9 +109,31 @@ const OrderList = ({ status }: OrderListProps) => {
 
   const updatePaymentStatus = async (orderId: string, newPaymentStatus: "unpaid" | "deposit" | "paid") => {
     try {
+      // Get the order to calculate the correct amount_paid
+      const { data: order, error: fetchError } = await supabase
+        .from("orders")
+        .select("total_amount, amount_paid")
+        .eq("id", orderId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      let amount_paid = order.amount_paid;
+      
+      // Update amount_paid based on payment status
+      if (newPaymentStatus === "paid") {
+        amount_paid = order.total_amount;
+      } else if (newPaymentStatus === "unpaid") {
+        amount_paid = 0;
+      }
+      // For 'deposit', keep the existing amount_paid value
+
       const { error } = await supabase
         .from("orders")
-        .update({ payment_status: newPaymentStatus })
+        .update({ 
+          payment_status: newPaymentStatus,
+          amount_paid: amount_paid
+        })
         .eq("id", orderId);
 
       if (error) throw error;
