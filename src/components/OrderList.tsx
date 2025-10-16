@@ -23,7 +23,7 @@ import { Eye, Loader2, AlertCircle } from "lucide-react";
 import { format, addMonths, differenceInDays } from "date-fns";
 
 interface OrderListProps {
-  status: "all" | "pending" | "ready" | "collected" | "overdue";
+  status: "all" | "pending" | "in_progress" | "ready" | "delayed" | "collected" | "overdue";
 }
 
 const OrderList = ({ status }: OrderListProps) => {
@@ -84,7 +84,7 @@ const OrderList = ({ status }: OrderListProps) => {
     }
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: "pending" | "ready" | "collected" | "overdue") => {
+  const updateOrderStatus = async (orderId: string, newStatus: "pending" | "in_progress" | "ready" | "delayed" | "collected" | "overdue") => {
     try {
       const { error } = await supabase
         .from("orders")
@@ -92,6 +92,27 @@ const OrderList = ({ status }: OrderListProps) => {
         .eq("id", orderId);
 
       if (error) throw error;
+
+      // Send SMS if status is "ready" or "delayed"
+      if (newStatus === "ready" || newStatus === "delayed") {
+        const order = orders.find(o => o.id === orderId);
+        if (order?.customers?.phone_number) {
+          const message = newStatus === "ready" 
+            ? `Your laundry order is ready for collection. Order ID: ${orderId.slice(0, 8)}`
+            : `Your laundry order has been delayed. We apologize for the inconvenience. Order ID: ${orderId.slice(0, 8)}`;
+          
+          try {
+            await supabase.functions.invoke('send-sms', {
+              body: { 
+                to: order.customers.phone_number, 
+                message 
+              }
+            });
+          } catch (smsError) {
+            console.error("Failed to send SMS:", smsError);
+          }
+        }
+      }
 
       toast({
         title: "Status updated",
@@ -155,14 +176,18 @@ const OrderList = ({ status }: OrderListProps) => {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       pending: "secondary",
+      in_progress: "default",
       ready: "default",
+      delayed: "destructive",
       collected: "outline",
       overdue: "destructive",
     };
 
+    const displayText = status === "in_progress" ? "In Progress" : status.charAt(0).toUpperCase() + status.slice(1);
+
     return (
       <Badge variant={variants[status] || "default"}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {displayText}
       </Badge>
     );
   };
@@ -236,14 +261,16 @@ const OrderList = ({ status }: OrderListProps) => {
               <div className="flex gap-2">
                 <Select
                   value={order.status}
-                  onValueChange={(value) => updateOrderStatus(order.id, value as "pending" | "ready" | "collected" | "overdue")}
+                  onValueChange={(value) => updateOrderStatus(order.id, value as "pending" | "in_progress" | "ready" | "delayed" | "collected" | "overdue")}
                 >
                   <SelectTrigger className="h-8 text-xs flex-1">
                     <SelectValue placeholder="Order Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
                     <SelectItem value="ready">Ready</SelectItem>
+                    <SelectItem value="delayed">Delayed</SelectItem>
                     <SelectItem value="collected">Collected</SelectItem>
                     <SelectItem value="overdue">Overdue</SelectItem>
                   </SelectContent>
@@ -319,14 +346,16 @@ const OrderList = ({ status }: OrderListProps) => {
                 <TableCell>
                   <Select
                     value={order.status}
-                    onValueChange={(value) => updateOrderStatus(order.id, value as "pending" | "ready" | "collected" | "overdue")}
+                    onValueChange={(value) => updateOrderStatus(order.id, value as "pending" | "in_progress" | "ready" | "delayed" | "collected" | "overdue")}
                   >
                     <SelectTrigger className="w-32">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
                       <SelectItem value="ready">Ready</SelectItem>
+                      <SelectItem value="delayed">Delayed</SelectItem>
                       <SelectItem value="collected">Collected</SelectItem>
                       <SelectItem value="overdue">Overdue</SelectItem>
                     </SelectContent>
