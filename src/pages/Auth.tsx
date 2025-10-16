@@ -14,45 +14,63 @@ const Auth = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
+  // Redirect if user already logged in
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/dashboard");
-      }
-    });
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) navigate("/dashboard");
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    checkSession();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
         navigate("/dashboard");
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, [navigate]);
 
+  // Handle login
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Map username to email for Supabase authentication
-      const email = username === "admin" ? "admin@system.local" : `${username}@system.local`;
-      
-      const { error } = await supabase.auth.signInWithPassword({
+      // Map usernames to real Supabase user emails
+      let email: string;
+
+      if (username.toLowerCase() === "admin") {
+        email = "admin@system.local";
+      } else if (username.toLowerCase() === "cashier") {
+        email = "cashier@laundry.com";
+      } else {
+        email = `${username}@laundry.com`;
+      }
+
+      console.log("Attempting login with:", email);
+
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
+
       if (error) throw error;
-      
+
       toast({
         title: "Welcome back!",
-        description: "You've successfully logged in.",
+        description: "You have successfully logged in.",
       });
+
+      navigate("/dashboard");
     } catch (error: any) {
+      console.error("Login error:", error.message);
       toast({
-        title: "Error",
-        description: error.message || "Invalid credentials",
+        title: "Login Failed",
+        description: error.message || "Invalid username or password",
         variant: "destructive",
       });
     } finally {
@@ -62,15 +80,15 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md shadow-xl">
         <CardHeader>
-          <CardTitle className="text-xl sm:text-2xl">Laundry Management</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl font-semibold text-center">Laundry Management</CardTitle>
+          <CardDescription className="text-center">
             Sign in to your account
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAuth} className="space-y-4">
+          <form onSubmit={handleAuth} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input
@@ -79,7 +97,8 @@ const Auth = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                placeholder="admin"
+                placeholder="admin or cashier"
+                className="w-full"
               />
             </div>
 
@@ -93,6 +112,7 @@ const Auth = () => {
                 required
                 placeholder="••••••••"
                 minLength={6}
+                className="w-full"
               />
             </div>
 
