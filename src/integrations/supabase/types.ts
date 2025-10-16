@@ -273,8 +273,14 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "staff"
-      order_status: "pending" | "ready" | "collected" | "overdue"
+      app_role: "admin" | "staff" | "cashier"
+      order_status:
+        | "pending"
+        | "ready"
+        | "collected"
+        | "overdue"
+        | "in_progress"
+        | "delayed"
       payment_method: "cash" | "mpesa" | "pending"
       payment_status: "unpaid" | "deposit" | "paid"
     }
@@ -404,8 +410,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "staff"],
-      order_status: ["pending", "ready", "collected", "overdue"],
+      app_role: ["admin", "staff", "cashier"],
+      order_status: [
+        "pending",
+        "ready",
+        "collected",
+        "overdue",
+        "in_progress",
+        "delayed",
+      ],
       payment_method: ["cash", "mpesa", "pending"],
       payment_status: ["unpaid", "deposit", "paid"],
     },
