@@ -300,87 +300,102 @@ const OrderList = ({ status }: OrderListProps) => {
   return (
     <div className="space-y-3">
       {/* Mobile View */}
-      <div className="block lg:hidden space-y-3">
-        {orders.map((order) => (
-          <div key={order.id} className="border rounded-lg p-3 space-y-2">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-semibold text-sm">
-                  {order.customers?.full_name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {order.customers?.phone_number}
-                </p>
-              </div>
-              {getStatusBadge(order.status)}
-            </div>
-            <div className="text-xs space-y-1">
-              <p>
-                <span className="text-muted-foreground">Collection:</span>{" "}
-                {format(new Date(order.collection_date), "MMM dd")}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Total:</span> KES{" "}
-                {parseFloat(order.total_amount).toFixed(2)}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Payment:</span>{" "}
-                {getPaymentBadge(order.payment_status)}
-              </p>
-              {getOverdueInfo(order.collection_date, order.status) && (
-                <p>
-                  <span className="text-muted-foreground">Storage:</span>{" "}
-                  {getOverdueInfo(order.collection_date, order.status)}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Select
-                  value={order.status}
-                  onValueChange={(value) =>
-                    updateOrderStatus(order.id, value as Exclude<OrderStatus, "all">)
-                  }
-                >
-                  <SelectTrigger className="h-8 text-xs flex-1">
-                    <SelectValue placeholder="Order Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="ready">Ready</SelectItem>
-                    <SelectItem value="delayed">Delayed</SelectItem>
-                    <SelectItem value="collected">Collected</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/receipt/${order.id}`)}
-                >
-                  <Eye className="h-3 w-3" />
-                </Button>
-              </div>
-              <Select
-                value={order.payment_status}
-                onValueChange={(value) =>
-                  updatePaymentStatus(order.id, value as PaymentStatus)
-                }
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Payment Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unpaid">Unpaid</SelectItem>
-                  <SelectItem value="deposit">Deposit</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        ))}
+     {/* Mobile View */}
+<div className="block lg:hidden space-y-4">
+  {orders.map((order) => (
+    <div
+      key={order.id}
+      className="border rounded-xl p-4 shadow-sm bg-white space-y-3"
+    >
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="font-semibold text-sm">
+            {order.customers?.full_name}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {order.customers?.phone_number}
+          </p>
+        </div>
+        {getStatusBadge(order.status)}
       </div>
+
+      {/* Details */}
+      <div className="text-xs space-y-1">
+        <p>
+          <span className="text-muted-foreground">Collection:</span>{" "}
+          {format(new Date(order.collection_date), "MMM dd")}
+        </p>
+        <p>
+          <span className="text-muted-foreground">Total:</span> KES{" "}
+          {parseFloat(order.total_amount).toFixed(2)}
+        </p>
+        <p>
+          <span className="text-muted-foreground">Payment:</span>{" "}
+          {getPaymentBadge(order.payment_status)}
+        </p>
+        {getOverdueInfo(order.collection_date, order.status) && (
+          <p>
+            <span className="text-muted-foreground">Storage:</span>{" "}
+            {getOverdueInfo(order.collection_date, order.status)}
+          </p>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="space-y-3">
+        {/* Status Update */}
+        <Select
+          value={order.status}
+          onValueChange={(value) =>
+            updateOrderStatus(order.id, value as Exclude<OrderStatus, "all">)
+          }
+        >
+          <SelectTrigger className="h-9 text-xs w-full">
+            <SelectValue placeholder="Order Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="ready">Ready</SelectItem>
+            <SelectItem value="delayed">Delayed</SelectItem>
+            <SelectItem value="collected">Collected</SelectItem>
+            <SelectItem value="overdue">Overdue</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Payment Update */}
+        <Select
+          value={order.payment_status}
+          onValueChange={(value) =>
+            updatePaymentStatus(order.id, value as PaymentStatus)
+          }
+        >
+          <SelectTrigger className="h-9 text-xs w-full">
+            <SelectValue placeholder="Payment Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unpaid">Unpaid</SelectItem>
+            <SelectItem value="deposit">Deposit</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* View Receipt */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => navigate(`/receipt/${order.id}`)}
+        >
+          <Eye className="h-4 w-4 mr-1" />
+          View Receipt
+        </Button>
+      </div>
+    </div>
+  ))}
+</div>
+
 
       {/* Desktop View */}
       <div className="hidden lg:block rounded-md border overflow-x-auto">
