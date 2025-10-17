@@ -9,7 +9,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -25,12 +24,11 @@ serve(async (req) => {
       throw new Error("Africa's Talking credentials not configured");
     }
 
-    // Send SMS via Africa's Talking
     const response = await fetch("https://api.africastalking.com/version1/messaging", {
       method: "POST",
       headers: {
-        "apiKey": AT_API_KEY,
-        "Accept": "application/json",
+        apiKey: AT_API_KEY,
+        Accept: "application/json",
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
@@ -42,12 +40,16 @@ serve(async (req) => {
 
     const data = await response.json();
 
+    if (!response.ok) {
+      console.error("Africa's Talking error:", data);
+    }
+
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: response.ok ? 200 : 400,
     });
-
   } catch (error) {
+    console.error("SMS function error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
