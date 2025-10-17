@@ -12,14 +12,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   // Redirect if user already logged in
   useEffect(() => {
@@ -49,22 +48,25 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Clean up mobile input (remove spaces & lowercase)
+      const cleanUsername = username.trim().toLowerCase();
+      const cleanPassword = password.trim();
+
       // Map usernames to real Supabase user emails
       let email: string;
-
-      if (username.toLowerCase() === "admin") {
+      if (cleanUsername === "admin") {
         email = "admin@system.local";
-      } else if (username.toLowerCase() === "cashier") {
+      } else if (cleanUsername === "cashier") {
         email = "cashier@laundry.com";
       } else {
-        email = `${username}@laundry.com`;
+        email = `${cleanUsername}@laundry.com`;
       }
 
       console.log("Attempting login with:", email);
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
-        password,
+        password: cleanPassword,
       });
 
       if (error) throw error;
@@ -105,6 +107,7 @@ const Auth = () => {
               <Input
                 id="username"
                 type="text"
+                autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -115,29 +118,17 @@ const Auth = () => {
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  minLength={6}
-                  className="w-full pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                minLength={6}
+                className="w-full"
+              />
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
