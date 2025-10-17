@@ -86,6 +86,16 @@ const OrderForm = () => {
     return items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
   };
 
+  const normalizePhoneNumber = (phone: string) => {
+    let normalized = phone.trim();
+    if (normalized.startsWith("0")) {
+      normalized = "+254" + normalized.slice(1);
+    } else if (normalized.startsWith("254")) {
+      normalized = "+" + normalized;
+    }
+    return normalized;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -94,12 +104,15 @@ const OrderForm = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // ✅ Normalize phone number
+      const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
       // Create or get customer
       let customerId;
       const { data: existingCustomer } = await supabase
         .from("customers")
         .select("id")
-        .eq("phone_number", phoneNumber)
+        .eq("phone_number", normalizedPhone)
         .single();
 
       if (existingCustomer) {
@@ -109,7 +122,7 @@ const OrderForm = () => {
           .from("customers")
           .insert({
             full_name: customerName,
-            phone_number: phoneNumber,
+            phone_number: normalizedPhone,
           })
           .select()
           .single();
@@ -192,7 +205,7 @@ const OrderForm = () => {
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
             required
-            placeholder="+254 700 000 000"
+            placeholder="07xx xxx xxx"
           />
         </div>
 
@@ -208,9 +221,9 @@ const OrderForm = () => {
         </div>
       </div>
 
+      {/* Items Section */}
       <div className="space-y-4">
         <Label className="text-lg font-semibold">Clothing Items</Label>
-
         {items.map((item, index) => (
           <Card key={index} className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -265,7 +278,6 @@ const OrderForm = () => {
                 </Button>
               </div>
             </div>
-
             <div className="mt-2 text-sm text-muted-foreground">
               Subtotal: KES {(item.quantity * item.unit_price).toFixed(2)}
             </div>
@@ -296,6 +308,7 @@ const OrderForm = () => {
         <span className="text-2xl font-bold">KES {calculateTotal().toFixed(2)}</span>
       </div>
 
+      {/* Payment Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="paymentStatus">Payment Status *</Label>
