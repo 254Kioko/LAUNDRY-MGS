@@ -96,6 +96,14 @@ const OrderList = ({ status }: OrderListProps) => {
     orderId: string,
     newStatus: Exclude<OrderStatus, "all">
   ) => {
+    // Optimistic update
+    const previousOrders = [...orders];
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.id === orderId ? { ...order, status: newStatus } : order
+      )
+    );
+
     try {
       const { error: updateError } = await supabase
         .from("orders")
@@ -104,7 +112,7 @@ const OrderList = ({ status }: OrderListProps) => {
 
       if (updateError) throw updateError;
 
-      // Re-fetch fresh order details to ensure phone number is up to date
+      // Re-fetch order for SMS
       const { data: updatedOrder, error: fetchError } = await supabase
         .from("orders")
         .select("id, customers(phone_number)")
@@ -113,7 +121,6 @@ const OrderList = ({ status }: OrderListProps) => {
 
       if (fetchError) throw fetchError;
 
-      // Send SMS if status is "ready" or "delayed"
       if (
         (newStatus === "ready" || newStatus === "delayed") &&
         updatedOrder?.customers?.phone_number
@@ -153,6 +160,8 @@ const OrderList = ({ status }: OrderListProps) => {
       });
     } catch (error: any) {
       console.error("Error updating order:", error);
+      // Revert optimistic update
+      setOrders(previousOrders);
       toast({
         title: "Error",
         description: "Failed to update order status",
@@ -165,6 +174,16 @@ const OrderList = ({ status }: OrderListProps) => {
     orderId: string,
     newPaymentStatus: PaymentStatus
   ) => {
+    // Optimistic update
+    const previousOrders = [...orders];
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.id === orderId
+          ? { ...order, payment_status: newPaymentStatus }
+          : order
+      )
+    );
+
     try {
       const { data: order, error: fetchError } = await supabase
         .from("orders")
@@ -198,6 +217,8 @@ const OrderList = ({ status }: OrderListProps) => {
       });
     } catch (error: any) {
       console.error("Error updating payment status:", error);
+      // Revert optimistic update
+      setOrders(previousOrders);
       toast({
         title: "Error",
         description: "Failed to update payment status",
