@@ -92,6 +92,43 @@ const OrderList = ({ status }: OrderListProps) => {
     }
   };
 
+  // Separate function for SMS - runs independently
+  const sendSMSNotification = async (
+    phoneNumber: string | undefined,
+    orderId: string,
+    status: string
+  ) => {
+    if (!phoneNumber) {
+      console.log("No phone number available for SMS");
+      return;
+    }
+
+    const message =
+      status === "ready"
+        ? `Your laundry order is ready for collection. Order ID: ${orderId.slice(0, 8)}`
+        : `Your laundry order has been delayed. We apologize for the inconvenience. Order ID: ${orderId.slice(0, 8)}`;
+
+    try {
+      console.log("Sending SMS to:", phoneNumber);
+      const { data, error } = await supabase.functions.invoke("send-sms", {
+        body: { to: phoneNumber, message },
+      });
+
+      if (error) {
+        console.error("SMS edge function error:", error);
+        toast({
+          title: "SMS notification failed",
+          description: "Status updated but SMS could not be sent",
+          variant: "destructive",
+        });
+      } else {
+        console.log("SMS sent successfully:", data);
+      }
+    } catch (smsError: any) {
+      console.error("SMS sending failed:", smsError);
+    }
+  };
+
   const updateOrderStatus = async (
     orderId: string,
     newStatus: Exclude<OrderStatus, "all">
@@ -105,66 +142,42 @@ const OrderList = ({ status }: OrderListProps) => {
     );
 
     try {
-      const { error: updateError } = await supabase
+      // Step 1: Update status in database (this must succeed)
+      const { data: updatedOrder, error: updateError } = await supabase
         .from("orders")
         .update({ status: newStatus })
-        .eq("id", orderId);
-
-      if (updateError) throw updateError;
-
-      // Re-fetch order for SMS
-      const { data: updatedOrder, error: fetchError } = await supabase
-        .from("orders")
-        .select("id, customers(phone_number)")
         .eq("id", orderId)
+        .select("id, customers(phone_number)")
         .single();
 
-      if (fetchError) throw fetchError;
+      if (updateError) {
+        console.error("Database update error:", updateError);
+        throw updateError;
+      }
 
-      if (
-        (newStatus === "ready" || newStatus === "delayed") &&
-        updatedOrder?.customers?.phone_number
-      ) {
-        const message =
-          newStatus === "ready"
-            ? `Your laundry order is ready for collection. Order ID: ${orderId.slice(
-                0,
-                8
-              )}`
-            : `Your laundry order has been delayed. We apologize for the inconvenience. Order ID: ${orderId.slice(
-                0,
-                8
-              )}`;
+      console.log("Status updated successfully to:", newStatus);
 
-        try {
-          await supabase.functions.invoke("send-sms", {
-            body: {
-              to: updatedOrder.customers.phone_number,
-              message,
-            },
-          });
-        } catch (smsError) {
-          console.error("Failed to send SMS:", smsError);
-          toast({
-            title: "SMS Failed",
-            description:
-              "Could not send SMS notification to the customer. Please check logs.",
-            variant: "destructive",
-          });
-        }
+      // Step 2: Try to send SMS (completely separate - won't block update)
+      if (newStatus === "ready" || newStatus === "delayed") {
+        // Send SMS in background - don't await or throw
+        sendSMSNotification(
+          updatedOrder?.customers?.phone_number,
+          orderId,
+          newStatus
+        );
       }
 
       toast({
         title: "Status updated",
-        description: "Order status has been updated successfully.",
+        description: `Order status changed to ${newStatus}`,
       });
     } catch (error: any) {
-      console.error("Error updating order:", error);
+      console.error("Error updating order status:", error);
       // Revert optimistic update
       setOrders(previousOrders);
       toast({
         title: "Error",
-        description: "Failed to update order status",
+        description: error.message || "Failed to update order status",
         variant: "destructive",
       });
     }
@@ -300,102 +313,100 @@ const OrderList = ({ status }: OrderListProps) => {
   return (
     <div className="space-y-3">
       {/* Mobile View */}
-     {/* Mobile View */}
-<div className="block lg:hidden space-y-4">
-  {orders.map((order) => (
-    <div
-      key={order.id}
-      className="border rounded-xl p-4 shadow-sm bg-white space-y-3"
-    >
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <p className="font-semibold text-sm">
-            {order.customers?.full_name}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {order.customers?.phone_number}
-          </p>
-        </div>
-        {getStatusBadge(order.status)}
+      <div className="block lg:hidden space-y-4">
+        {orders.map((order) => (
+          <div
+            key={order.id}
+            className="border rounded-xl p-4 shadow-sm bg-white space-y-3"
+          >
+            {/* Header */}
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-semibold text-sm">
+                  {order.customers?.full_name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {order.customers?.phone_number}
+                </p>
+              </div>
+              {getStatusBadge(order.status)}
+            </div>
+
+            {/* Details */}
+            <div className="text-xs space-y-1">
+              <p>
+                <span className="text-muted-foreground">Collection:</span>{" "}
+                {format(new Date(order.collection_date), "MMM dd")}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Total:</span> KES{" "}
+                {parseFloat(order.total_amount).toFixed(2)}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Payment:</span>{" "}
+                {getPaymentBadge(order.payment_status)}
+              </p>
+              {getOverdueInfo(order.collection_date, order.status) && (
+                <p>
+                  <span className="text-muted-foreground">Storage:</span>{" "}
+                  {getOverdueInfo(order.collection_date, order.status)}
+                </p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-3">
+              {/* Status Update */}
+              <Select
+                value={order.status}
+                onValueChange={(value) =>
+                  updateOrderStatus(order.id, value as Exclude<OrderStatus, "all">)
+                }
+              >
+                <SelectTrigger className="h-9 text-xs w-full">
+                  <SelectValue placeholder="Order Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="ready">Ready</SelectItem>
+                  <SelectItem value="delayed">Delayed</SelectItem>
+                  <SelectItem value="collected">Collected</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Payment Update */}
+              <Select
+                value={order.payment_status}
+                onValueChange={(value) =>
+                  updatePaymentStatus(order.id, value as PaymentStatus)
+                }
+              >
+                <SelectTrigger className="h-9 text-xs w-full">
+                  <SelectValue placeholder="Payment Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                  <SelectItem value="deposit">Deposit</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* View Receipt */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => navigate(`/receipt/${order.id}`)}
+              >
+                <Eye className="h-4 w-4 mr-1" />
+                View Receipt
+              </Button>
+            </div>
+          </div>
+        ))}
       </div>
-
-      {/* Details */}
-      <div className="text-xs space-y-1">
-        <p>
-          <span className="text-muted-foreground">Collection:</span>{" "}
-          {format(new Date(order.collection_date), "MMM dd")}
-        </p>
-        <p>
-          <span className="text-muted-foreground">Total:</span> KES{" "}
-          {parseFloat(order.total_amount).toFixed(2)}
-        </p>
-        <p>
-          <span className="text-muted-foreground">Payment:</span>{" "}
-          {getPaymentBadge(order.payment_status)}
-        </p>
-        {getOverdueInfo(order.collection_date, order.status) && (
-          <p>
-            <span className="text-muted-foreground">Storage:</span>{" "}
-            {getOverdueInfo(order.collection_date, order.status)}
-          </p>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="space-y-3">
-        {/* Status Update */}
-        <Select
-          value={order.status}
-          onValueChange={(value) =>
-            updateOrderStatus(order.id, value as Exclude<OrderStatus, "all">)
-          }
-        >
-          <SelectTrigger className="h-9 text-xs w-full">
-            <SelectValue placeholder="Order Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="ready">Ready</SelectItem>
-            <SelectItem value="delayed">Delayed</SelectItem>
-            <SelectItem value="collected">Collected</SelectItem>
-            <SelectItem value="overdue">Overdue</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Payment Update */}
-        <Select
-          value={order.payment_status}
-          onValueChange={(value) =>
-            updatePaymentStatus(order.id, value as PaymentStatus)
-          }
-        >
-          <SelectTrigger className="h-9 text-xs w-full">
-            <SelectValue placeholder="Payment Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="unpaid">Unpaid</SelectItem>
-            <SelectItem value="deposit">Deposit</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* View Receipt */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => navigate(`/receipt/${order.id}`)}
-        >
-          <Eye className="h-4 w-4 mr-1" />
-          View Receipt
-        </Button>
-      </div>
-    </div>
-  ))}
-</div>
-
 
       {/* Desktop View */}
       <div className="hidden lg:block rounded-md border overflow-x-auto">
