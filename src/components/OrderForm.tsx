@@ -49,6 +49,11 @@ const OrderForm = () => {
     
     if (error) {
       console.error("Error fetching clothing types:", error);
+      toast({
+        title: "Error loading clothing types",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
     
@@ -101,23 +106,37 @@ const OrderForm = () => {
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      console.log("=== Starting order creation ===");
+      
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log("Auth check:", { user: user?.id, authError });
+      
+      if (authError || !user) {
+        throw new Error("You must be logged in to create orders. Please log in first.");
+      }
 
-      // ✅ Normalize phone number
       const normalizedPhone = normalizePhoneNumber(phoneNumber);
+      console.log("Normalized phone:", normalizedPhone);
 
       // Create or get customer
+      console.log("Looking for existing customer...");
       let customerId;
-      const { data: existingCustomer } = await supabase
+      const { data: existingCustomer, error: customerSearchError } = await supabase
         .from("customers")
         .select("id")
         .eq("phone_number", normalizedPhone)
-        .single();
+        .maybeSingle();
+
+      if (customerSearchError) {
+        console.error("Customer search error:", customerSearchError);
+        throw new Error(`Failed to search customer: ${customerSearchError.message}`);
+      }
 
       if (existingCustomer) {
+        console.log("Found existing customer:", existingCustomer.id);
         customerId = existingCustomer.id;
       } else {
+        console.log("Creating new customer...");
         const { data: newCustomer, error: customerError } = await supabase
           .from("customers")
           .insert({
@@ -127,17 +146,30 @@ const OrderForm = () => {
           .select()
           .single();
 
-        if (customerError) throw customerError;
+        if (customerError) {
+          console.error("Customer insert error:", customerError);
+          throw new Error(`Failed to create customer: ${customerError.message}`);
+        }
+        console.log("Created customer:", newCustomer.id);
         customerId = newCustomer.id;
       }
 
-      // Create order
+      // Create order with total_amount
       const totalAmount = calculateTotal();
+      console.log("Creating order with data:", {
+        customer_id: customerId,
+        collection_date: collectionDate,
+        total_amount: totalAmount,
+        payment_status: paymentStatus,
+        created_by: user.id,
+      });
+      
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
           customer_id: customerId,
           collection_date: collectionDate,
+          total_amount: totalAmount,
           payment_status: paymentStatus,
           payment_method: paymentMethod,
           amount_paid: parseFloat(amountPaid) || 0,
@@ -148,9 +180,16 @@ const OrderForm = () => {
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error("Order insert error:", orderError);
+        console.error("Order error details:", JSON.stringify(orderError, null, 2));
+        throw new Error(`Failed to create order: ${orderError.message}`);
+      }
+      
+      console.log("Order created successfully:", order.id);
 
       // Create order items
+      console.log("Creating order items...");
       const orderItems = items.map(item => ({
         order_id: order.id,
         clothing_type_id: item.clothing_type_id,
@@ -164,7 +203,12 @@ const OrderForm = () => {
         .from("order_items")
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error("Order items insert error:", itemsError);
+        throw new Error(`Failed to create order items: ${itemsError.message}`);
+      }
+      
+      console.log("Order items created successfully");
 
       toast({
         title: "Order created!",
@@ -175,8 +219,8 @@ const OrderForm = () => {
     } catch (error: any) {
       console.error("Error creating order:", error);
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Error creating order",
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -185,7 +229,9 @@ const OrderForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">Create New Order</h1>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="customerName">Customer Name *</Label>
@@ -232,6 +278,7 @@ const OrderForm = () => {
                 <Select 
                   value={item.clothing_type_id} 
                   onValueChange={(value) => updateItem(index, "clothing_type_id", value)}
+                  required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
@@ -283,6 +330,11 @@ const OrderForm = () => {
             </div>
           </Card>
         ))}
+        
+        <Button type="button" onClick={addItem} variant="outline" size="sm">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Item
+        </Button>
       </div>
 
       <div className="space-y-2">
@@ -294,13 +346,6 @@ const OrderForm = () => {
           placeholder="Any special instructions..."
           rows={3}
         />
-      </div>
-
-      <div className="flex justify-end">
-        <Button type="button" onClick={addItem} size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Item
-        </Button>
       </div>
 
       <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
