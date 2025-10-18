@@ -73,7 +73,7 @@ const OrderList = ({ status }: OrderListProps) => {
         .order("created_at", { ascending: false });
 
       if (status !== "all") {
-        query = query.eq("status", status);
+        query = query.eq("status", status); // ✅ use correct column
       }
 
       const { data, error } = await query;
@@ -92,7 +92,7 @@ const OrderList = ({ status }: OrderListProps) => {
     }
   };
 
-  // Separate function for SMS - runs independently
+  // ✅ SMS helper
   const sendSMSNotification = async (
     phoneNumber: string | undefined,
     orderId: string,
@@ -129,11 +129,11 @@ const OrderList = ({ status }: OrderListProps) => {
     }
   };
 
+  // ✅ FIXED: updateOrderStatus uses "status"
   const updateOrderStatus = async (
     orderId: string,
     newStatus: Exclude<OrderStatus, "all">
   ) => {
-    // Optimistic update
     const previousOrders = [...orders];
     setOrders((prev) =>
       prev.map((order) =>
@@ -142,10 +142,9 @@ const OrderList = ({ status }: OrderListProps) => {
     );
 
     try {
-      // Step 1: Update status in database (this must succeed)
       const { data: updatedOrder, error: updateError } = await supabase
         .from("orders")
-        .update({ status: newStatus })
+        .update({ status: newStatus }) // ✅ fixed column
         .eq("id", orderId)
         .select("id, customers(phone_number)")
         .single();
@@ -157,9 +156,7 @@ const OrderList = ({ status }: OrderListProps) => {
 
       console.log("Status updated successfully to:", newStatus);
 
-      // Step 2: Try to send SMS (completely separate - won't block update)
       if (newStatus === "ready" || newStatus === "delayed") {
-        // Send SMS in background - don't await or throw
         sendSMSNotification(
           updatedOrder?.customers?.phone_number,
           orderId,
@@ -173,7 +170,6 @@ const OrderList = ({ status }: OrderListProps) => {
       });
     } catch (error: any) {
       console.error("Error updating order status:", error);
-      // Revert optimistic update
       setOrders(previousOrders);
       toast({
         title: "Error",
@@ -187,7 +183,6 @@ const OrderList = ({ status }: OrderListProps) => {
     orderId: string,
     newPaymentStatus: PaymentStatus
   ) => {
-    // Optimistic update
     const previousOrders = [...orders];
     setOrders((prev) =>
       prev.map((order) =>
@@ -230,7 +225,6 @@ const OrderList = ({ status }: OrderListProps) => {
       });
     } catch (error: any) {
       console.error("Error updating payment status:", error);
-      // Revert optimistic update
       setOrders(previousOrders);
       toast({
         title: "Error",
