@@ -4,41 +4,113 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut, Plus } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import OrderList from "@/components/OrderList";
 import DashboardStats from "@/components/DashboardStats";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import type { Session } from "@supabase/supabase-js";
 
 const CashierDashboard = () => {
   const navigate = useNavigate();
   const { role, loading } = useUserRole();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("all");
+  const [session, setSession] = useState<Session | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
+  // Handle authentication state with proper session management
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        console.log("Auth state changed:", event);
+        setSession(currentSession);
+        
+        // Handle auth events
+        if (event === 'SIGNED_OUT') {
+          navigate("/auth");
+        } else if (event === 'TOKEN_REFRESHED') {
+          console.log("Token refreshed successfully");
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession }, error }) => {
+      if (error) {
+        console.error("Error getting session:", error);
+        toast({
+          title: "Authentication Error",
+          description: "Failed to verify session. Please login again.",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+      
+      setSession(currentSession);
+      setIsAuthChecking(false);
+      
+      if (!currentSession) {
         navigate("/auth");
       }
-    };
-    checkAuth();
-  }, [navigate]);
+    });
 
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate, toast]);
+
+  // Handle role-based redirect
   useEffect(() => {
-    if (!loading && role !== "cashier") {
+    if (!loading && !isAuthChecking && role && role !== "cashier") {
+      console.log("Non-cashier role detected, redirecting to dashboard");
       navigate("/dashboard");
     }
-  }, [role, loading, navigate]);
+  }, [role, loading, isAuthChecking, navigate]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out.",
+      });
+      navigate("/auth");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to logout. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  if (loading) {
+  // Show loading state while checking authentication or role
+  if (loading || isAuthChecking) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render dashboard if no session
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Verifying authentication...</p>
+        </div>
       </div>
     );
   }
