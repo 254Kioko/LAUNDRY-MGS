@@ -1,160 +1,181 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { format, addMonths, differenceInDays } from "date-fns";
-import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Printer } from "lucide-react";
+import { format } from "date-fns";
 
-interface ReceiptViewProps {
-  order: any;
-}
+const Receipt = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [order, setOrder] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-const ReceiptView = ({ order }: ReceiptViewProps) => {
-  const collectionDate = new Date(order.collection_date);
-  const overdueDate = addMonths(collectionDate, 3);
-  const daysUntilOverdue = differenceInDays(overdueDate, new Date());
-  const isOverdue = daysUntilOverdue < 0;
-  const isApproachingOverdue = daysUntilOverdue <= 30 && daysUntilOverdue > 0;
+  useEffect(() => {
+    fetchOrder();
+  }, [id]);
+
+  const fetchOrder = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select(`
+          *,
+          customers (*),
+          order_items (
+            *,
+            clothing_types (*)
+          )
+        `)
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      setOrder(data);
+    } catch (error: any) {
+      console.error("Error fetching order:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading receipt...</p>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <p>Order not found</p>
+        <Button onClick={() => navigate("/")}>Go Back</Button>
+      </div>
+    );
+  }
 
   return (
-    <Card className="print:shadow-none">
-      <CardHeader className="text-center space-y-2">
-        <h1 className="text-2xl sm:text-3xl font-bold">Laundry Receipt</h1>
-        <p className="text-xs sm:text-sm text-muted-foreground">Order #{order.id.slice(0, 8)}</p>
-      </CardHeader>
-
-      <CardContent className="space-y-4 sm:space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <h3 className="font-semibold mb-2 text-sm sm:text-base">Customer Details</h3>
-            <div className="space-y-1 text-xs sm:text-sm">
-              <p><span className="text-muted-foreground">Name:</span> {order.customers.full_name}</p>
-              <p><span className="text-muted-foreground">Phone:</span> {order.customers.phone_number}</p>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-semibold mb-2 text-sm sm:text-base">Order Details</h3>
-            <div className="space-y-1 text-xs sm:text-sm">
-              <p><span className="text-muted-foreground">Date Received:</span> {format(new Date(order.date_received), "MMM dd, yyyy")}</p>
-              <p><span className="text-muted-foreground">Collection Date:</span> {format(new Date(order.collection_date), "MMM dd, yyyy")}</p>
-              <p><span className="text-muted-foreground">Status:</span> {order.status.toUpperCase()}</p>
-              {order.status !== 'collected' && (
-                <p className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Storage After:</span> 
-                  <span>{format(overdueDate, "MMM dd, yyyy")}</span>
-                  {isOverdue && (
-                    <Badge variant="destructive" className="text-xs">Overdue</Badge>
-                  )}
-                  {isApproachingOverdue && (
-                    <Badge variant="secondary" className="text-xs">{daysUntilOverdue} days left</Badge>
-                  )}
-                </p>
-              )}
-            </div>
-          </div>
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-3xl mx-auto space-y-4">
+        <div className="flex justify-between items-center print:hidden">
+          <Button variant="outline" onClick={() => navigate("/")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Orders
+          </Button>
+          <Button onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print Receipt
+          </Button>
         </div>
 
-        <Separator />
-
-        <div>
-          <h3 className="font-semibold mb-4 text-sm sm:text-base">Items</h3>
-          <div className="space-y-2">
-            <div className="hidden sm:grid grid-cols-5 gap-4 text-sm font-semibold text-muted-foreground">
-              <div className="col-span-2">Item</div>
-              <div>Quantity</div>
-              <div>Unit Price</div>
-              <div className="text-right">Subtotal</div>
-            </div>
-            <Separator className="hidden sm:block" />
-            {order.order_items?.map((item: any) => (
-              <div key={item.id}>
-                {/* Mobile View */}
-                <div className="sm:hidden space-y-1 border-b pb-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">{item.clothing_types.name}</span>
-                    <span className="font-semibold">KES {parseFloat(item.subtotal).toFixed(2)}</span>
-                  </div>
-                  {item.color && (
-                    <div className="text-xs text-muted-foreground">Color: {item.color}</div>
-                  )}
-                  <div className="text-xs text-muted-foreground">
-                    {item.quantity} x KES {parseFloat(item.unit_price).toFixed(2)}
-                  </div>
-                </div>
-                {/* Desktop View */}
-                <div className="hidden sm:grid grid-cols-5 gap-4 text-sm">
-                  <div className="col-span-2">
-                    <div>{item.clothing_types.name}</div>
-                    {item.color && (
-                      <div className="text-xs text-muted-foreground">Color: {item.color}</div>
-                    )}
-                  </div>
-                  <div>{item.quantity}</div>
-                  <div>KES {parseFloat(item.unit_price).toFixed(2)}</div>
-                  <div className="text-right">KES {parseFloat(item.subtotal).toFixed(2)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <div className="flex justify-between text-base sm:text-lg">
-            <span className="font-semibold">Total Amount:</span>
-            <span className="font-bold">KES {parseFloat(order.total_amount).toFixed(2)}</span>
-          </div>
-          
-          <div className="flex justify-between text-sm sm:text-base">
-            <span className="text-muted-foreground">Amount Paid:</span>
-            <span>KES {parseFloat(order.amount_paid).toFixed(2)}</span>
+        <Card className="p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold">Laundry Receipt</h1>
+            <p className="text-muted-foreground">Order #{order.id.slice(0, 8)}</p>
           </div>
 
-          <div className="flex justify-between text-base sm:text-lg font-semibold">
-            <span>Balance Due:</span>
-            <span className={parseFloat(order.total_amount) - parseFloat(order.amount_paid) > 0 ? "text-destructive" : "text-green-600"}>
-              KES {(parseFloat(order.total_amount) - parseFloat(order.amount_paid)).toFixed(2)}
-            </span>
-          </div>
+          <Separator className="my-6" />
 
-          {parseFloat(order.storage_fee) > 0 && (
-            <div className="flex justify-between text-destructive text-sm sm:text-base">
-              <span>Storage Fee:</span>
-              <span>KES {parseFloat(order.storage_fee).toFixed(2)}</span>
-            </div>
-          )}
-        </div>
-
-        <Separator />
-
-        <div className="space-y-1 text-xs sm:text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Payment Status:</span>
-            <span className="font-medium uppercase">{order.payment_status}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Payment Method:</span>
-            <span className="font-medium uppercase">{order.payment_method}</span>
-          </div>
-        </div>
-
-        {order.notes && (
-          <>
-            <Separator />
+          <div className="grid grid-cols-2 gap-6 mb-6">
             <div>
-              <h3 className="font-semibold mb-2 text-sm sm:text-base">Notes</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">{order.notes}</p>
+              <h3 className="font-semibold mb-2">Customer Details</h3>
+              <p>{order.customers.full_name}</p>
+              <p className="text-sm text-muted-foreground">{order.customers.phone_number}</p>
             </div>
-          </>
-        )}
+            <div>
+              <h3 className="font-semibold mb-2">Order Details</h3>
+              <p className="text-sm">
+                <span className="font-medium">Created:</span>{" "}
+                {format(new Date(order.created_at), "PPP")}
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Collection:</span>{" "}
+                {format(new Date(order.collection_date), "PPP")}
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Status:</span>{" "}
+                <span className="capitalize">{order.status.replace("_", " ")}</span>
+              </p>
+            </div>
+          </div>
 
-        <div className="text-center text-xs text-muted-foreground pt-4">
-          <p>Thank you for your choosing us!</p>
-          <p className="mt-1">Items not collected within 3 months will incur storage fees</p>
-        </div>
-      </CardContent>
-    </Card>
+          <Separator className="my-6" />
+
+          <div className="mb-6">
+            <h3 className="font-semibold mb-4">Items</h3>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2">Item</th>
+                  <th className="text-center py-2">Qty</th>
+                  <th className="text-right py-2">Price</th>
+                  <th className="text-right py-2">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {order.order_items.map((item: any) => (
+                  <tr key={item.id} className="border-b">
+                    <td className="py-3">
+                      <div>
+                        <p className="font-medium">{item.clothing_types.name}</p>
+                        {item.color && (
+                          <p className="text-sm text-muted-foreground">Color: {item.color}</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="text-center">{item.quantity}</td>
+                    <td className="text-right">KES {item.unit_price.toFixed(2)}</td>
+                    <td className="text-right font-medium">KES {item.subtotal.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <Separator className="my-6" />
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-lg">
+              <span className="font-semibold">Total Amount:</span>
+              <span className="font-bold">KES {order.total_amount.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Amount Paid:</span>
+              <span>KES {order.amount_paid.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-lg font-semibold">
+              <span>Balance Due:</span>
+              <span>KES {(order.total_amount - order.amount_paid).toFixed(2)}</span>
+            </div>
+          </div>
+
+          {order.notes && (
+            <>
+              <Separator className="my-6" />
+              <div>
+                <h3 className="font-semibold mb-2">Notes</h3>
+                <p className="text-sm text-muted-foreground">{order.notes}</p>
+              </div>
+            </>
+          )}
+
+          <Separator className="my-6" />
+
+          <div className="text-center text-sm text-muted-foreground">
+            <p>Thank you for your business!</p>
+          </div>
+        </Card>
+      </div>
+    </div>
   );
 };
 
-export default ReceiptView;
+export default Receipt;
