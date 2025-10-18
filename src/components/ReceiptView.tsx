@@ -8,14 +8,14 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { format } from "date-fns";
 
 const Receipt = () => {
-  const { id } = useParams();
+  const { orderId } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchOrder();
-  }, [id]);
+  }, [orderId]);
 
   const fetchOrder = async () => {
     try {
@@ -29,7 +29,7 @@ const Receipt = () => {
             clothing_types (*)
           )
         `)
-        .eq("id", id)
+        .eq("id", orderId)
         .single();
 
       if (error) throw error;
