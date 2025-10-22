@@ -73,7 +73,7 @@ const OrderList = ({ status }: OrderListProps) => {
         .order("created_at", { ascending: false });
 
       if (status !== "all") {
-        query = query.eq("status", status); // ✅ use correct column
+        query = query.eq("status", status);
       }
 
       const { data, error } = await query;
@@ -92,7 +92,6 @@ const OrderList = ({ status }: OrderListProps) => {
     }
   };
 
-  // ✅ SMS helper
   const sendSMSNotification = async (
     phoneNumber: string | undefined,
     orderId: string,
@@ -103,33 +102,45 @@ const OrderList = ({ status }: OrderListProps) => {
       return;
     }
 
+    // Clean the phone number: remove spaces, dashes, parentheses
+    const cleanedPhone = phoneNumber.replace(/[\s\-\(\)]/g, '').trim();
+    
+    // Ensure it starts with + for international format
+    const formattedPhone = cleanedPhone.startsWith('+') ? cleanedPhone : `+${cleanedPhone}`;
+    
+    console.log("Original phone:", phoneNumber);
+    console.log("Cleaned phone:", formattedPhone);
+
     const message =
       status === "ready"
         ? `Your laundry order is ready for collection. Order ID: ${orderId.slice(0, 8)}`
         : `Your laundry order has been delayed. We apologize for the inconvenience. Order ID: ${orderId.slice(0, 8)}`;
 
     try {
-      console.log("Sending SMS to:", phoneNumber);
       const { data, error } = await supabase.functions.invoke("send-sms", {
-        body: { to: phoneNumber, message },
+        body: { 
+          to: formattedPhone,
+          message 
+        },
       });
 
       if (error) {
-        console.error("SMS edge function error:", error);
+        console.error("SMS error details:", JSON.stringify(error, null, 2));
         toast({
           title: "SMS notification failed",
-          description: "Status updated but SMS could not be sent",
+          description: error.message || "Status updated but SMS could not be sent",
           variant: "destructive",
         });
-      } else {
-        console.log("SMS sent successfully:", data);
+        return;
       }
+
+      console.log("SMS sent successfully:", data);
+      
     } catch (smsError: any) {
-      console.error("SMS sending failed:", smsError);
+      console.error("SMS exception:", smsError);
     }
   };
 
-  // ✅ FIXED: updateOrderStatus uses "status"
   const updateOrderStatus = async (
     orderId: string,
     newStatus: Exclude<OrderStatus, "all">
@@ -144,7 +155,7 @@ const OrderList = ({ status }: OrderListProps) => {
     try {
       const { data: updatedOrder, error: updateError } = await supabase
         .from("orders")
-        .update({ status: newStatus }) // ✅ fixed column
+        .update({ status: newStatus })
         .eq("id", orderId)
         .select("id, customers(phone_number)")
         .single();
