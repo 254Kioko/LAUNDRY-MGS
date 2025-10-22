@@ -170,7 +170,9 @@ const Receipt = () => {
           <Separator className="my-6" />
 
           <div className="text-center text-sm text-muted-foreground">
-            <p>Thank you for your business!</p>
+            <p>Thank you for choosing us!</p>
+         <p><b>Disclaimer</b>Items not collected within 3 months from the date of collection will incur storage cost</p>
+
           </div>
         </Card>
       </div>
