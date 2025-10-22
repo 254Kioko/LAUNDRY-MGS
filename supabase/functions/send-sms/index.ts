@@ -10,14 +10,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Input validation schema
+// Improved phone number validation
 const smsSchema = z.object({
   to: z.string()
     .trim()
     .min(10, { message: "Phone number must be at least 10 digits" })
-    .max(15, { message: "Phone number must not exceed 15 digits" })
-    .regex(/^\+?[1-9]\d{1,14}$/, { 
-      message: "Invalid phone number format. Use format: +254712345678" 
+    .max(20, { message: "Phone number must not exceed 20 digits" })
+    .regex(/^\+?[0-9]+$/, { 
+      message: "Phone number must contain only digits and optional + prefix" 
     }),
   message: z.string()
     .trim()
@@ -26,20 +26,20 @@ const smsSchema = z.object({
 });
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("SMS function invoked");
+  console.log("=== SMS Function Started ===");
 
   try {
-    // Check environment variables
+    // Check credentials
     if (!AT_API_KEY || !AT_USERNAME) {
-      console.error("Missing Africa's Talking credentials");
+      console.error("❌ Missing credentials - AT_API_KEY or AT_USERNAME not set");
       return new Response(
         JSON.stringify({ 
-          error: "SMS service not configured. Please contact administrator." 
+          error: "SMS service not configured",
+          hint: "Check AT_API_KEY and AT_USERNAME in Cloud secrets"
         }), 
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -48,14 +48,20 @@ serve(async (req) => {
       );
     }
 
-    // Parse and validate request body
+    console.log("✓ Credentials found");
+
+    // Parse request
     let requestBody;
     try {
       requestBody = await req.json();
+      console.log("✓ Request body parsed:", { 
+        hasTo: !!requestBody.to, 
+        hasMessage: !!requestBody.message 
+      });
     } catch (e) {
-      console.error("Invalid JSON in request body:", e);
+      console.error("❌ Invalid JSON:", e);
       return new Response(
-        JSON.stringify({ error: "Invalid request body. Expected JSON." }), 
+        JSON.stringify({ error: "Invalid JSON in request body" }), 
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 400,
@@ -63,20 +69,20 @@ serve(async (req) => {
       );
     }
 
-    // Validate input with zod
+    // Validate input
     const validationResult = smsSchema.safeParse(requestBody);
     
     if (!validationResult.success) {
-      const errors = validationResult.error.errors.map(err => ({
-        field: err.path.join('.'),
-        message: err.message
-      }));
+      const errors = validationResult.error.errors;
+      console.error("❌ Validation failed:", JSON.stringify(errors, null, 2));
       
-      console.error("Input validation failed:", errors);
       return new Response(
         JSON.stringify({ 
-          error: "Invalid input",
-          details: errors 
+          error: "Validation failed",
+          details: errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message
+          }))
         }), 
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -86,11 +92,14 @@ serve(async (req) => {
     }
 
     const { to, message } = validationResult.data;
+    
+    console.log(`✓ Validation passed`);
+    console.log(`  Phone: ${to}`);
+    console.log(`  Message length: ${message.length} chars`);
 
-    console.log(`Sending SMS to: ${to.substring(0, 8)}...`);
-    console.log(`Message length: ${message.length} characters`);
-
-    // Send SMS to Africa's Talking
+    // Send to Africa's Talking
+    console.log("→ Sending to Africa's Talking...");
+    
     const response = await fetch(
       "https://api.africastalking.com/version1/messaging",
       {
@@ -109,14 +118,15 @@ serve(async (req) => {
     );
 
     const data = await response.json();
-    console.log("Africa's Talking response:", JSON.stringify(data));
+    console.log("← Africa's Talking response status:", response.status);
+    console.log("← Response data:", JSON.stringify(data, null, 2));
 
-    // Check for API errors
     if (!response.ok) {
-      console.error("Africa's Talking API error:", data);
+      console.error("❌ Africa's Talking API error");
       return new Response(
         JSON.stringify({ 
-          error: "SMS service error",
+          error: "Africa's Talking API error",
+          status: response.status,
           details: data 
         }), 
         {
@@ -126,13 +136,14 @@ serve(async (req) => {
       );
     }
 
-    // Check SMS delivery status
+    // Check delivery status
     const recipients = data?.SMSMessageData?.Recipients;
+    
     if (!recipients || recipients.length === 0) {
-      console.error("No recipients in response:", data);
+      console.error("❌ No recipients in response");
       return new Response(
         JSON.stringify({ 
-          error: "Failed to send SMS. No recipients found in response.",
+          error: "No recipients found",
           details: data 
         }), 
         {
@@ -142,15 +153,16 @@ serve(async (req) => {
       );
     }
 
-    const recipientStatus = recipients[0]?.status;
-    const statusCode = recipients[0]?.statusCode;
+    const recipient = recipients[0];
+    console.log(`Status: ${recipient.status}, Code: ${recipient.statusCode}`);
 
-    if (recipientStatus !== "Success") {
-      console.error(`SMS delivery failed. Status: ${recipientStatus}, Code: ${statusCode}`);
+    if (recipient.statusCode !== 101) { // 101 = Success
+      console.error(`❌ Delivery failed: ${recipient.status}`);
       return new Response(
         JSON.stringify({ 
-          error: `SMS delivery failed: ${recipientStatus}`,
-          statusCode,
+          error: "SMS delivery failed",
+          status: recipient.status,
+          statusCode: recipient.statusCode,
           details: data 
         }), 
         {
@@ -160,17 +172,16 @@ serve(async (req) => {
       );
     }
 
-    console.log("SMS sent successfully");
+    console.log("✓ SMS sent successfully!");
 
-    // Success response
     return new Response(
       JSON.stringify({ 
         success: true,
         message: "SMS sent successfully",
         data: {
-          messageId: data?.SMSMessageData?.Recipients?.[0]?.messageId,
-          status: recipientStatus,
-          cost: data?.SMSMessageData?.Recipients?.[0]?.cost,
+          messageId: recipient.messageId,
+          status: recipient.status,
+          cost: recipient.cost,
         }
       }), 
       {
@@ -180,7 +191,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Unexpected error in SMS function:", error);
+    console.error("❌ Unexpected error:", error);
     return new Response(
       JSON.stringify({ 
         error: "Internal server error",
