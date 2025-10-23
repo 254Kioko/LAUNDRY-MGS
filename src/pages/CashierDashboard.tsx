@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Plus, Package } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { LogOut, Plus, Package, Loader2 } from "lucide-react";
 import OrderList from "@/components/OrderList";
 import DashboardStats from "@/components/DashboardStats";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -19,24 +18,21 @@ const CashierDashboard = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // Handle authentication state with proper session management
+  // Handle authentication state
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         console.log("Auth state changed:", event);
         setSession(currentSession);
-        
-        // Handle auth events
-        if (event === 'SIGNED_OUT') {
+
+        if (event === "SIGNED_OUT") {
           navigate("/auth");
-        } else if (event === 'TOKEN_REFRESHED') {
+        } else if (event === "TOKEN_REFRESHED") {
           console.log("Token refreshed successfully");
         }
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession }, error }) => {
       if (error) {
         console.error("Error getting session:", error);
@@ -48,22 +44,21 @@ const CashierDashboard = () => {
         navigate("/auth");
         return;
       }
-      
+
       setSession(currentSession);
       setIsAuthChecking(false);
-      
+
       if (!currentSession) {
         navigate("/auth");
       }
     });
 
-    // Cleanup subscription
     return () => {
       subscription.unsubscribe();
     };
   }, [navigate, toast]);
 
-  // Handle role-based redirect
+  // Redirect if not cashier
   useEffect(() => {
     if (!loading && !isAuthChecking && role && role !== "cashier") {
       console.log("Non-cashier role detected, redirecting to dashboard");
@@ -75,7 +70,7 @@ const CashierDashboard = () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
+
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
@@ -91,7 +86,7 @@ const CashierDashboard = () => {
     }
   };
 
-  // Show loading state while checking authentication or role
+  // Loading states
   if (loading || isAuthChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -103,7 +98,6 @@ const CashierDashboard = () => {
     );
   }
 
-  // Don't render dashboard if no session
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -115,35 +109,38 @@ const CashierDashboard = () => {
     );
   }
 
+  // ✅ Dashboard content
   return (
-<div className="flex flex-wrap gap-2">
-  {/* New Order Button */}
-  <Button onClick={() => navigate("/new-order")} size="sm">
-    <Plus className="mr-2 h-4 w-4" />
-    <span className="hidden sm:inline">New Order</span>
-    <span className="sm:hidden">New</span>
-  </Button>
+    <div className="min-h-screen bg-background">
+      {/* Header Section */}
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-3 sm:py-4 flex flex-wrap justify-between items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold">Cashier Dashboard</h1>
+          <div className="flex flex-wrap gap-2">
+            {/* New Order Button */}
+            <Button onClick={() => navigate("/new-order")} size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">New Order</span>
+              <span className="sm:hidden">New</span>
+            </Button>
 
-  {/* Customer Tracking Button */}
-  <Button
-    variant="secondary"
-    size="sm"
-    onClick={() => navigate("/track")}
-  >
-    <Package className="mr-2 h-4 w-4" />
-    <span className="hidden sm:inline">Customer Tracking</span>
-    <span className="sm:hidden">Track</span>
-  </Button>
+            {/* Customer Tracking Button */}
+            <Button variant="secondary" size="sm" onClick={() => navigate("/track")}>
+              <Package className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Customer Tracking</span>
+              <span className="sm:hidden">Track</span>
+            </Button>
 
-  {/* Logout Button */}
-  <Button variant="outline" onClick={handleLogout} size="sm">
-    <LogOut className="mr-2 h-4 w-4" />
-    <span className="hidden sm:inline">Logout</span>
-  </Button>
-</div>
-
+            {/* Logout Button */}
+            <Button variant="outline" onClick={handleLogout} size="sm">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          </div>
+        </div>
       </header>
 
+      {/* Main Section */}
       <main className="container mx-auto px-4 py-4 sm:py-8">
         <div className="mb-6">
           <DashboardStats />
