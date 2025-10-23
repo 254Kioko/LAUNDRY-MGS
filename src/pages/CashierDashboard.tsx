@@ -126,16 +126,7 @@ const CashierDashboard = () => {
               <span className="hidden sm:inline">New Order</span>
               <span className="sm:hidden">New</span>
             </Button>
-            {/* Customer Tracking Button */}
-  <Button
-    variant="secondary"
-    size="sm"
-    onClick={() => navigate("/track")}
-  >
-    <Package className="mr-2 h-4 w-4" />
-    <span className="hidden sm:inline">Customer Tracking</span>
-    <span className="sm:hidden">Track</span>
-  </Button>
+
             <Button variant="outline" onClick={handleLogout} size="sm">
               <LogOut className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Logout</span>
