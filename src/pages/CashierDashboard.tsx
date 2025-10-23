@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Plus } from "lucide-react";
+import { LogOut, Plus, Package } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import OrderList from "@/components/OrderList";
 import DashboardStats from "@/components/DashboardStats";
