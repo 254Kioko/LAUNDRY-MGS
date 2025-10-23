@@ -174,7 +174,7 @@ const TrackOrder = () => {
           <CardContent>
             <div className="flex gap-2">
               <Input
-                placeholder=" phone number +254..."
+                placeholder=" +254..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
