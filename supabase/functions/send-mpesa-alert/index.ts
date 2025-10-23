@@ -33,6 +33,15 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Validate Twilio credentials
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+      console.error("Missing Twilio credentials");
+      return new Response(
+        JSON.stringify({ error: "Twilio credentials not configured" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Construct SMS message
     const message = `MPESA PAYMENT ALERT\nCustomer: ${customerName}\nOrder #: ${orderNumber}\nAmount: KES ${amountPaid.toFixed(2)}`;
 
