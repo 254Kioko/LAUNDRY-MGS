@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package, AlertCircle } from "lucide-react";
+import { Search, Package, AlertCircle, ArrowLeft, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Order {
@@ -24,10 +25,43 @@ interface Order {
 }
 
 const TrackOrder = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    checkUser();
+  }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("orders-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        (payload) => {
+          console.log("Realtime change:", payload);
+          // Auto-refresh orders when updates occur
+          handleSearch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [searchTerm]);
+
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate("/auth");
+    }
+    setAuthLoading(false);
+  };
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
@@ -43,7 +77,6 @@ const TrackOrder = () => {
     setSearched(true);
 
     try {
-      // First, find customers matching the search term
       const { data: customers, error: customerError } = await supabase
         .from("customers")
         .select("id")
@@ -61,7 +94,6 @@ const TrackOrder = () => {
         return;
       }
 
-      // Then fetch orders for those customers
       const customerIds = customers.map(c => c.id);
       const { data, error } = await supabase
         .from("orders")
@@ -76,7 +108,6 @@ const TrackOrder = () => {
         .order("date_received", { ascending: false });
 
       if (error) throw error;
-
       setOrders(data || []);
 
       if (!data || data.length === 0) {
@@ -148,11 +179,22 @@ const TrackOrder = () => {
     return null;
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold">Track Your Order</h1>
+        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/cashier-dashboard")}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-2xl font-bold">Track Orders</h1>
         </div>
       </header>
 
@@ -238,6 +280,17 @@ const TrackOrder = () => {
                         <p className="font-medium">{order.notes}</p>
                       </div>
                     )}
+
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/receipt/${order.id}`)}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Receipt
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
