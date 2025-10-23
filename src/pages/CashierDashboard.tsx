@@ -116,23 +116,32 @@ const CashierDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-3 sm:py-4 flex justify-between items-center">
-          <h1 className="text-xl sm:text-2xl font-bold">Cashier Dashboard</h1>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate("/new-order")} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">New Order</span>
-              <span className="sm:hidden">New</span>
-            </Button>
+<div className="flex flex-wrap gap-2">
+  {/* New Order Button */}
+  <Button onClick={() => navigate("/new-order")} size="sm">
+    <Plus className="mr-2 h-4 w-4" />
+    <span className="hidden sm:inline">New Order</span>
+    <span className="sm:hidden">New</span>
+  </Button>
 
-            <Button variant="outline" onClick={handleLogout} size="sm">
-              <LogOut className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
-          </div>
-        </div>
+  {/* Customer Tracking Button */}
+  <Button
+    variant="secondary"
+    size="sm"
+    onClick={() => navigate("/track")}
+  >
+    <Package className="mr-2 h-4 w-4" />
+    <span className="hidden sm:inline">Customer Tracking</span>
+    <span className="sm:hidden">Track</span>
+  </Button>
+
+  {/* Logout Button */}
+  <Button variant="outline" onClick={handleLogout} size="sm">
+    <LogOut className="mr-2 h-4 w-4" />
+    <span className="hidden sm:inline">Logout</span>
+  </Button>
+</div>
+
       </header>
 
       <main className="container mx-auto px-4 py-4 sm:py-8">
