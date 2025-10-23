@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,38 +30,6 @@ const TrackOrder = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
-
-  useEffect(() => {
-    checkUser();
-  }, []);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel("orders-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        (payload) => {
-          console.log("Realtime change:", payload);
-          // Auto-refresh orders when updates occur
-          handleSearch();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [searchTerm]);
-
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/auth");
-    }
-    setAuthLoading(false);
-  };
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
@@ -77,6 +45,7 @@ const TrackOrder = () => {
     setSearched(true);
 
     try {
+      // Step 1: Find customers matching name or phone
       const { data: customers, error: customerError } = await supabase
         .from("customers")
         .select("id")
@@ -94,7 +63,8 @@ const TrackOrder = () => {
         return;
       }
 
-      const customerIds = customers.map(c => c.id);
+      // Step 2: Fetch orders for those customers
+      const customerIds = customers.map((c) => c.id);
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -108,6 +78,7 @@ const TrackOrder = () => {
         .order("date_received", { ascending: false });
 
       if (error) throw error;
+
       setOrders(data || []);
 
       if (!data || data.length === 0) {
@@ -179,25 +150,19 @@ const TrackOrder = () => {
     return null;
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">Loading...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/cashier-dashboard")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-2xl font-bold">Track Orders</h1>
+          <h1 className="text-2xl font-bold">Track Your Order</h1>
         </div>
       </header>
 
+      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
@@ -209,7 +174,7 @@ const TrackOrder = () => {
           <CardContent>
             <div className="flex gap-2">
               <Input
-                placeholder="Enter name or phone number"
+                placeholder="Enter your name or phone number"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -228,6 +193,7 @@ const TrackOrder = () => {
           </CardContent>
         </Card>
 
+        {/* Results */}
         {searched && orders.length > 0 && (
           <div className="mt-8 max-w-4xl mx-auto space-y-4">
             <h2 className="text-xl font-semibold">Orders Found</h2>
@@ -235,6 +201,7 @@ const TrackOrder = () => {
               <Card key={order.id}>
                 <CardContent className="pt-6">
                   <div className="grid gap-4">
+                    {/* Customer info + status */}
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-semibold">{order.customers.full_name}</p>
@@ -246,6 +213,7 @@ const TrackOrder = () => {
                       </div>
                     </div>
 
+                    {/* Order details */}
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Received</p>
@@ -265,6 +233,7 @@ const TrackOrder = () => {
                       </div>
                     </div>
 
+                    {/* Optional extras */}
                     {order.storage_fee > 0 && (
                       <div className="text-sm">
                         <p className="text-muted-foreground">Storage Fee</p>
@@ -281,6 +250,7 @@ const TrackOrder = () => {
                       </div>
                     )}
 
+                    {/* Receipt button */}
                     <div className="flex justify-end">
                       <Button
                         variant="outline"
@@ -295,6 +265,12 @@ const TrackOrder = () => {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+        {searched && orders.length === 0 && !loading && (
+          <div className="text-center mt-8 text-muted-foreground">
+            No orders found. Please check your details.
           </div>
         )}
       </main>
