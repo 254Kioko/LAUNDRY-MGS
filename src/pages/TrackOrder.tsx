@@ -26,16 +26,26 @@ interface Order {
 
 const TrackOrder = () => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
+  const normalizePhoneNumber = (phone: string) => {
+    let normalized = phone.trim();
+    if (normalized.startsWith("0")) {
+      normalized = "+254" + normalized.slice(1);
+    } else if (normalized.startsWith("254")) {
+      normalized = "+" + normalized;
+    }
+    return normalized;
+  };
+
   const handleSearch = async () => {
-    if (!searchTerm.trim()) {
+    if (!phoneNumber.trim()) {
       toast({
-        title: "Search required",
-        description: "Please enter a name or phone number",
+        title: "Phone number required",
+        description: "Please enter your phone number to track your order.",
         variant: "destructive",
       });
       return;
@@ -45,11 +55,14 @@ const TrackOrder = () => {
     setSearched(true);
 
     try {
-      // Step 1: Find customers matching name or phone
+      const normalizedPhone = normalizePhoneNumber(phoneNumber);
+      console.log("Searching orders for:", normalizedPhone);
+
+      // Step 1: Find the customer by phone number only
       const { data: customers, error: customerError } = await supabase
         .from("customers")
         .select("id")
-        .or(`full_name.ilike.%${searchTerm}%,phone_number.ilike.%${searchTerm}%`);
+        .eq("phone_number", normalizedPhone);
 
       if (customerError) throw customerError;
 
@@ -57,14 +70,13 @@ const TrackOrder = () => {
         setOrders([]);
         toast({
           title: "No orders found",
-          description: "No orders match your search criteria",
+          description: "No customer found with that phone number.",
         });
-        setLoading(false);
         return;
       }
 
-      // Step 2: Fetch orders for those customers
-      const customerIds = customers.map((c) => c.id);
+      // Step 2: Fetch all orders for that customer
+      const customerId = customers[0].id;
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -74,7 +86,7 @@ const TrackOrder = () => {
             phone_number
           )
         `)
-        .in("customer_id", customerIds)
+        .eq("customer_id", customerId)
         .order("date_received", { ascending: false });
 
       if (error) throw error;
@@ -84,14 +96,14 @@ const TrackOrder = () => {
       if (!data || data.length === 0) {
         toast({
           title: "No orders found",
-          description: "No orders match your search criteria",
+          description: "You don’t have any orders yet.",
         });
       }
     } catch (error) {
       console.error("Error searching orders:", error);
       toast({
         title: "Error",
-        description: "Failed to search orders. Please try again.",
+        description: "Failed to search orders. Please try again later.",
         variant: "destructive",
       });
     } finally {
@@ -152,7 +164,6 @@ const TrackOrder = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
@@ -162,32 +173,24 @@ const TrackOrder = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
-              Search Order 
+              Track by Phone Number
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex gap-2">
               <Input
-                placeholder=" +254..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Enter your phone (e.g. 07xx or +2547xx)"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               />
               <Button onClick={handleSearch} disabled={loading}>
-                {loading ? (
-                  "Searching..."
-                ) : (
-                  <>
-                    <Search className="mr-2 h-4 w-4" />
-                    Search
-                  </>
-                )}
+                {loading ? "Searching..." : (<><Search className="mr-2 h-4 w-4" />Search</>)}
               </Button>
             </div>
           </CardContent>
@@ -201,7 +204,6 @@ const TrackOrder = () => {
               <Card key={order.id}>
                 <CardContent className="pt-6">
                   <div className="grid gap-4">
-                    {/* Customer info + status */}
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-semibold">{order.customers.full_name}</p>
@@ -213,7 +215,6 @@ const TrackOrder = () => {
                       </div>
                     </div>
 
-                    {/* Order details */}
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Received</p>
@@ -233,7 +234,6 @@ const TrackOrder = () => {
                       </div>
                     </div>
 
-                    {/* Optional extras */}
                     {order.storage_fee > 0 && (
                       <div className="text-sm">
                         <p className="text-muted-foreground">Storage Fee</p>
@@ -250,7 +250,6 @@ const TrackOrder = () => {
                       </div>
                     )}
 
-                    {/* Receipt button */}
                     <div className="flex justify-end">
                       <Button
                         variant="outline"
@@ -270,7 +269,7 @@ const TrackOrder = () => {
 
         {searched && orders.length === 0 && !loading && (
           <div className="text-center mt-8 text-muted-foreground">
-            No orders found. Please check your details.
+            No orders found for that phone number.
           </div>
         )}
       </main>
