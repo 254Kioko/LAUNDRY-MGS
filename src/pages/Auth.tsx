@@ -1,9 +1,92 @@
-import { Eye, EyeOff } from "lucide-react"; // Import eye icons
-
-// ... other imports
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { toast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 const Auth = () => {
-  // ... your existing state and functions
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // New state for password visibility
+
+  // Redirect if user already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) navigate("/dashboard");
+    };
+
+    checkSession();
+
+    const { listener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "SIGNED_IN" && session) {
+          navigate("/dashboard");
+        }
+      }
+    );
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, [navigate]);
+
+  // Handle login
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const cleanUsername = username.trim().toLowerCase();
+      const cleanPassword = password.trim();
+
+      let email: string;
+      if (cleanUsername === "admin") {
+        email = "admin@system.local";
+      } else if (cleanUsername === "cashier") {
+        email = "cashier@laundry.com";
+      } else {
+        email = `${cleanUsername}@laundry.com`;
+      }
+
+      console.log("Attempting login with:", email);
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: cleanPassword,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully logged in.",
+      });
+
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error("Login error:", error.message);
+      toast({
+        title: "Login Failed",
+        description: error.message || "Invalid username or password",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary p-4">
@@ -51,7 +134,7 @@ const Auth = () => {
                   onClick={() => setShowPassword(!showPassword)} // Toggle visibility
                   className="absolute right-2 top-1/2 transform -translate-y-1/2"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? "Hide" : "Show"}
                 </Button>
               </div>
             </div>
