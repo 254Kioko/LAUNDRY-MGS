@@ -19,6 +19,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // New state for password visibility
 
   // Redirect if user already logged in
   useEffect(() => {
@@ -29,7 +30,7 @@ const Auth = () => {
 
     checkSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
+    const { listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === "SIGNED_IN" && session) {
           navigate("/dashboard");
@@ -48,11 +49,9 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Clean up mobile input (remove spaces & lowercase)
       const cleanUsername = username.trim().toLowerCase();
       const cleanPassword = password.trim();
 
-      // Map usernames to real Supabase user emails
       let email: string;
       if (cleanUsername === "admin") {
         email = "admin@system.local";
@@ -118,17 +117,26 @@ const Auth = () => {
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                minLength={6}
-                className="w-full"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"} // Toggle input type
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  minLength={6}
+                  className="w-full"
+                />
+                <Button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)} // Toggle visibility
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </Button>
+              </div>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
